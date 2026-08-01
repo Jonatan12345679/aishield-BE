@@ -1,0 +1,50 @@
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: aishield-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aishield
+      POSTGRES_PASSWORD: aishield123
+      POSTGRES_DB: aishield_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/scripts/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aishield -d aishield_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - aishield-network
+
+  backend:
+    build: .
+    container_name: aishield-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://aishield:aishield123@postgres:5432/aishield_db
+      - MODEL_PATH=/app/ml/model/isolation_forest.pkl
+      - DEBUG=True
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./ml:/app/ml
+    networks:
+      - aishield-network
+    command: >
+      sh -c "python scripts/seed_demo.py &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+volumes:
+  postgres_data:
+
+networks:
+  aishield-network:
+    driver: bridge
