@@ -4,3 +4,19 @@ __pycache__/
 .git/
 .gitignore
 .env
+
+# Docker files itu sendiri
+docker-compose.yml
+docker-compose.prod.yml
+Dockerfile
+Dockerfile.prod
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Dokumentasi
+*.md
+README*
