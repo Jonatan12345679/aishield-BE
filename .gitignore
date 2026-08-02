@@ -1,9 +1,38 @@
+# Python Cache & Virtual Environment
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .venv/
+venv/
+env/
+
+# Environment Variables (Credentials) 
 .env
 .env.*
 !.env.example
 
+# Machine Learning Models (File Besar) 
+*.pkl
+*.joblib
+*.h5
+*.onnx
+*.pt
+*.pth
+# lacak file .gitkeep agar folder ml/model/ tidak hilang
+!.gitkeep
+
+# IDE & Text Editor Configuration 
+.idea/             
+.vscode/           
+*.swp
+*.swo
+
+# OS / System Garbage 
+.DS_Store          
+Thumbs.db          
+
+#  Testing & Coverage 
+.pytest_cache/
+.coverage
+htmlcov/
