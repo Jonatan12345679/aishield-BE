@@ -38,7 +38,7 @@ services:
       - ./ml:/app/ml
     networks:
       - aishield-network
-    command: >
+    command: 
       sh -c uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
 volumes:
