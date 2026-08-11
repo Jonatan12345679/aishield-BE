@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 
+from app.api.v1.endpoints.detection import router as detection_router
+
 app = FastAPI(
     title="AIShield Security API",
     description="Backend API for Anomaly Detection & Threat Monitoring",
@@ -13,3 +15,9 @@ def read_root():
         "system": "AIShield Engine",
         "version": "1.0.0"
     }
+
+app.include_router(
+    detection_router,
+    prefix="/api/v1",
+    tags=["Privacy Detection"]
+)

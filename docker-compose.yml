@@ -30,17 +30,18 @@ services:
     environment:
       - DATABASE_URL=postgresql://aishield:aishield123@postgres:5432/aishield_db
       - MODEL_PATH=/app/ml/model/isolation_forest.pkl
+      - MODEL_PRIVACY_DETECTION_PATH=/app/ml/privacy-detection-model/weights/best.onnx
       - DEBUG=True
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
+      - ./app:/app/app
       - ./ml:/app/ml
     networks:
       - aishield-network
-    command: 
-      sh -c uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
-
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+       
 volumes:
   postgres_data:
 
