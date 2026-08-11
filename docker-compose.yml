@@ -11,8 +11,8 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./backend/scripts/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    - postgres_data:/var/lib/postgresql/data
+    - ./scripts/init.sql:/docker-entrypoint-initdb.d/01-init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U aishield -d aishield_db"]
       interval: 5s
@@ -29,7 +29,7 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://aishield:aishield123@postgres:5432/aishield_db
-      - MODEL_PATH=/app/ml/model/isolation_forest.pkl
+      - ML_MODEL_PATH=/app/ml/model/isolation_forest.pkl
       - DEBUG=True
     depends_on:
       postgres:
