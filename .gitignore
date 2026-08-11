@@ -19,6 +19,10 @@ env/
 *.onnx
 *.pt
 *.pth
+
+!ml/aishield/model/*.pkl
+!ml/privacy/*.pt
+
 # lacak file .gitkeep agar folder ml/model/ tidak hilang
 !.gitkeep
 
