@@ -1,0 +1,11 @@
+[
+  "bytes_sent",
+  "bytes_received",
+  "packet_count",
+  "duration_ms",
+  "connection_rate",
+  "bytes_ratio",
+  "is_common_port",
+  "bytes_per_packet",
+  "burst_score"
+]
