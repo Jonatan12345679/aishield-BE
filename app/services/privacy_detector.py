@@ -3,62 +3,77 @@ import cv2
 import numpy as np
 import onnxruntime as ort
 
+
 class PrivacyDetector:
 
-    CLASS_NAMES = {
-        0: "plat-nomor",
-        1: "QR_CODE",
-        2: "qr_code",
-        3: "qrcode",
-        4: "daftar_barang",
-        5: "struk_belanja",
-        6: "total",
-        7: "waktu",
-        8: "ktp"
-    }
+    def __init__(
+        self,
+        model_path: str,
+        class_name: str
+    ):
+        self.class_name = class_name
 
-    def __init__(self, model_path: str):
         self.session = ort.InferenceSession(
             model_path,
             providers=["CPUExecutionProvider"]
         )
 
-
-    # pendeteksi privacy berdasarkan model
-    def detect(self, image_bytes: bytes):
-
-        original_img = cv2.imdecode(
+    def _prepare_image(
+        self,
+        image_bytes: bytes
+    ):
+        img = cv2.imdecode(
             np.frombuffer(image_bytes, np.uint8),
             cv2.IMREAD_COLOR
         )
 
-        original_h, original_w = original_img.shape[:2]
+        original_h, original_w = img.shape[:2]
 
-        img = cv2.resize(
-            original_img,
+        resized = cv2.resize(
+            img,
             (640, 640)
         )
 
-        img = cv2.cvtColor(
-            img,
+        rgb = cv2.cvtColor(
+            resized,
             cv2.COLOR_BGR2RGB
         )
 
-        img = img.astype(np.float32) / 255.0
+        tensor = rgb.astype(np.float32) / 255.0
 
-        img = np.transpose(
-            img,
+        tensor = np.transpose(
+            tensor,
             (2, 0, 1)
         )
 
-        img = np.expand_dims(
-            img,
+        tensor = np.expand_dims(
+            tensor,
             axis=0
+        )
+
+        return (
+            img,
+            original_w,
+            original_h,
+            tensor
+        )
+
+    def detect(
+        self,
+        image_bytes: bytes
+    ):
+        (
+            _,
+            original_w,
+            original_h,
+            tensor
+        ) = self._prepare_image(
+            image_bytes
         )
 
         outputs = self.session.run(
             None,
-            {"images": img}
+            {"images": tensor}
         )
 
         detections = []
@@ -70,17 +85,31 @@ class PrivacyDetector:
             if conf < 0.5:
                 continue
 
-            x1 = int(x1 / 640 * original_w)
-            y1 = int(y1 / 640 * original_h)
+            x1 = max(
+                0,
+                int(x1 / 640 * original_w)
+            )
 
-            x2 = int(x2 / 640 * original_w)
-            y2 = int(y2 / 640 * original_h)
+            y1 = max(
+                0,
+                int(y1 / 640 * original_h)
+            )
+
+            x2 = min(
+                original_w,
+                int(x2 / 640 * original_w)
+            )
+
+            y2 = min(
+                original_h,
+                int(y2 / 640 * original_h)
+            )
+
+            if x2 <= x1 or y2 <= y1:
+                continue
 
             detections.append({
-                "class": self.CLASS_NAMES.get(
-                    int(cls),
-                    f"class_{int(cls)}"
-                ),
+                "class": self.class_name,
                 "confidence": round(
                     float(conf),
                     4
@@ -96,7 +125,33 @@ class PrivacyDetector:
         return detections
 
 
-    def detect_with_boxes(self, image_bytes: bytes):
+class MultiPrivacyDetector:
+
+    def __init__(
+        self,
+        detectors: list[PrivacyDetector]
+    ):
+        self.detectors = detectors
+
+    def detect(
+        self,
+        image_bytes: bytes
+    ):
+        detections = []
+
+        for detector in self.detectors:
+            detections.extend(
+                detector.detect(
+                    image_bytes
+                )
+            )
+
+        return detections
+
+    def detect_with_boxes(
+        self,
+        image_bytes: bytes
+    ):
         detections = self.detect(
             image_bytes
         )
@@ -117,7 +172,6 @@ class PrivacyDetector:
             height = box["height"]
 
             class_name = detection["class"]
-
             confidence = detection["confidence"]
 
             cv2.rectangle(
@@ -148,7 +202,7 @@ class PrivacyDetector:
         )
 
         image_base64 = base64.b64encode(
-            buffer
+            buffer.tobytes()
         ).decode("utf-8")
 
         return {
@@ -156,91 +210,28 @@ class PrivacyDetector:
             "image": f"data:image/jpeg;base64,{image_base64}"
         }
 
-    
-    # digunakan untuk menglakukan pengebluran di image
-    def blur_image(self, image_bytes: bytes):
-
-        # tingkat ke yakinan jika ingin di blur
-        CONFIDENCE_THRESHOLD = 0.4
-
-        # White List yang digunakan jika hanya ingin melakukan blur
-        # pada beberapa class saja
-        # PRIVACY_CLASSES = {
-        #     0,  # plat_nomor
-        #     1,  # QR_CODE
-        #     2,  # qr_code
-        #     3,  # qrcode
-        #     8   # ktp
-        # }
-
+    def blur_image(
+        self,
+        image_bytes: bytes
+    ):
         img = cv2.imdecode(
             np.frombuffer(image_bytes, np.uint8),
             cv2.IMREAD_COLOR
         )
 
-        original_h, original_w = img.shape[:2]
-
-        resized = cv2.resize(
-            img,
-            (640, 640)
+        detections = self.detect(
+            image_bytes
         )
 
-        rgb = cv2.cvtColor(
-            resized,
-            cv2.COLOR_BGR2RGB
-        )
+        for detection in detections:
 
-        input_tensor = rgb.astype(np.float32) / 255.0
+            box = detection["box"]
 
-        input_tensor = np.transpose(
-            input_tensor,
-            (2, 0, 1)
-        )
+            x1 = box["x"]
+            y1 = box["y"]
 
-        input_tensor = np.expand_dims(
-            input_tensor,
-            axis=0
-        )
-
-        outputs = self.session.run(
-            None,
-            {"images": input_tensor}
-        )
-
-        detections = outputs[0][0]
-
-        for det in detections:
-
-            x1, y1, x2, y2, conf, cls = det
-
-            if conf < CONFIDENCE_THRESHOLD:
-                continue
-
-            # if int(cls) not in PRIVACY_CLASSES:
-            #     continue
-
-            x1 = max(
-                0,
-                int(x1 / 640 * original_w)
-            )
-
-            y1 = max(
-                0,
-                int(y1 / 640 * original_h)
-            )
-
-            x2 = min(
-                original_w,
-                int(x2 / 640 * original_w)
-            )
-
-            y2 = min(
-                original_h,
-                int(y2 / 640 * original_h)
-            )
-
-            if x2 <= x1 or y2 <= y1:
-                continue
+            x2 = x1 + box["width"]
+            y2 = y1 + box["height"]
 
             roi = img[y1:y2, x1:x2]
 
@@ -266,17 +257,17 @@ class PrivacyDetector:
 
             img[y1:y2, x1:x2] = blurred
 
-            _, buffer = cv2.imencode(
-                ".jpg",
-                img,
-                [
-                    cv2.IMWRITE_JPEG_QUALITY,
-                    98
-                ]
-            )
+        _, buffer = cv2.imencode(
+            ".jpg",
+            img,
+            [
+                cv2.IMWRITE_JPEG_QUALITY,
+                98
+            ]
+        )
 
-            image_base64 = base64.b64encode(
-                buffer.tobytes()
-            ).decode("utf-8")
+        image_base64 = base64.b64encode(
+            buffer.tobytes()
+        ).decode("utf-8")
 
-            return f"data:image/jpeg;base64,{image_base64}"
+        return f"data:image/jpeg;base64,{image_base64}"

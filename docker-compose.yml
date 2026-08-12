@@ -28,10 +28,12 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://aishield:aishield123@postgres:5432/aishield_db
-      - MODEL_PRIVACY_DETECTION_PATH=/app/ml/privacy-detection-model/all/weights/best.onnx
-      - ML_MODEL_PATH=/app/ml/model/isolation_forest.pkl
-      - DEBUG=True
+      - DATABASE_URL=${DATABASE_URL}
+      - DEBUG=${DEBUG}
+      - MODEL_PRIVACY_DETECTION_KTP_PATH=${MODEL_PRIVACY_DETECTION_KTP_PATH}
+      - MODEL_PRIVACY_DETECTION_PLAT_NOMOR_PATH=${MODEL_PRIVACY_DETECTION_PLAT_NOMOR_PATH}
+      - MODEL_PRIVACY_DETECTION_QR_CODE_PATH=${MODEL_PRIVACY_DETECTION_QR_CODE_PATH}
+      - MODEL_PRIVACY_DETECTION_STRUK_PATH=${MODEL_PRIVACY_DETECTION_STRUK_PATH}
     depends_on:
       postgres:
         condition: service_healthy
