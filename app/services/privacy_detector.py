@@ -1,9 +1,21 @@
+import base64
 import cv2
 import numpy as np
 import onnxruntime as ort
 
-
 class PrivacyDetector:
+
+    CLASS_NAMES = {
+        0: "plat-nomor",
+        1: "QR_CODE",
+        2: "qr_code",
+        3: "qrcode",
+        4: "daftar_barang",
+        5: "struk_belanja",
+        6: "total",
+        7: "waktu",
+        8: "ktp"
+    }
 
     def __init__(self, model_path: str):
         self.session = ort.InferenceSession(
@@ -11,16 +23,19 @@ class PrivacyDetector:
             providers=["CPUExecutionProvider"]
         )
 
-    # pendeteksi privacy nya bedasarkan model
+
+    # pendeteksi privacy berdasarkan model
     def detect(self, image_bytes: bytes):
 
-        img = cv2.imdecode(
+        original_img = cv2.imdecode(
             np.frombuffer(image_bytes, np.uint8),
             cv2.IMREAD_COLOR
         )
 
+        original_h, original_w = original_img.shape[:2]
+
         img = cv2.resize(
-            img,
+            original_img,
             (640, 640)
         )
 
@@ -55,19 +70,93 @@ class PrivacyDetector:
             if conf < 0.5:
                 continue
 
+            x1 = int(x1 / 640 * original_w)
+            y1 = int(y1 / 640 * original_h)
+
+            x2 = int(x2 / 640 * original_w)
+            y2 = int(y2 / 640 * original_h)
+
             detections.append({
-                "bbox": [
-                    float(x1),
-                    float(y1),
-                    float(x2),
-                    float(y2)
-                ],
-                "confidence": float(conf),
-                "class_id": int(cls)
+                "class": self.CLASS_NAMES.get(
+                    int(cls),
+                    f"class_{int(cls)}"
+                ),
+                "confidence": round(
+                    float(conf),
+                    4
+                ),
+                "box": {
+                    "x": x1,
+                    "y": y1,
+                    "width": x2 - x1,
+                    "height": y2 - y1
+                }
             })
 
         return detections
 
+
+    def detect_with_boxes(self, image_bytes: bytes):
+        detections = self.detect(
+            image_bytes
+        )
+
+        img = cv2.imdecode(
+            np.frombuffer(image_bytes, np.uint8),
+            cv2.IMREAD_COLOR
+        )
+
+        for detection in detections:
+
+            box = detection["box"]
+
+            x = box["x"]
+            y = box["y"]
+
+            width = box["width"]
+            height = box["height"]
+
+            class_name = detection["class"]
+
+            confidence = detection["confidence"]
+
+            cv2.rectangle(
+                img,
+                (x, y),
+                (x + width, y + height),
+                (0, 0, 255),
+                2
+            )
+
+            cv2.putText(
+                img,
+                f"{class_name} {confidence:.2f}",
+                (x, max(20, y - 10)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 0, 255),
+                2
+            )
+
+        _, buffer = cv2.imencode(
+            ".jpg",
+            img,
+            [
+                cv2.IMWRITE_JPEG_QUALITY,
+                98
+            ]
+        )
+
+        image_base64 = base64.b64encode(
+            buffer
+        ).decode("utf-8")
+
+        return {
+            "detections": detections,
+            "image": f"data:image/jpeg;base64,{image_base64}"
+        }
+
+    
     # digunakan untuk menglakukan pengebluran di image
     def blur_image(self, image_bytes: bytes):
 
@@ -177,9 +266,17 @@ class PrivacyDetector:
 
             img[y1:y2, x1:x2] = blurred
 
-        _, buffer = cv2.imencode(
-            ".jpg",
-            img
-        )
+            _, buffer = cv2.imencode(
+                ".jpg",
+                img,
+                [
+                    cv2.IMWRITE_JPEG_QUALITY,
+                    98
+                ]
+            )
 
-        return buffer.tobytes()
+            image_base64 = base64.b64encode(
+                buffer.tobytes()
+            ).decode("utf-8")
+
+            return f"data:image/jpeg;base64,{image_base64}"

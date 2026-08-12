@@ -29,7 +29,7 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://aishield:aishield123@postgres:5432/aishield_db
-      - MODEL_PRIVACY_DETECTION_PATH=/app/ml/privacy-detection-model/weights/best.onnx
+      - MODEL_PRIVACY_DETECTION_PATH=/app/ml/privacy-detection-model/all/weights/best.onnx
       - ML_MODEL_PATH=/app/ml/model/isolation_forest.pkl
       - DEBUG=True
     depends_on:

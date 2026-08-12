@@ -3,38 +3,41 @@ from fastapi import UploadFile
 from fastapi import File
 from fastapi.responses import Response
 
+
 from app.services.model_loader import detector
 
 router = APIRouter()
 
 
-@router.post("/detect")
-async def detect(
-    file: UploadFile = File(...)
+@router.post("/scan")
+async def scan(
+    image: UploadFile = File(...)
 ):
-    image_bytes = await file.read()
+    image_bytes = await image.read()
 
-    results = detector.detect(
+    result = detector.detect_with_boxes(
         image_bytes
     )
 
     return {
-        "count": len(results),
-        "detections": results
+        "success": True,
+        "message": "Privacy detection completed",
+        "detections": result["detections"],
+        "image": result["image"]
     }
-
 
 @router.post("/blur")
 async def blur(
-    file: UploadFile = File(...)
+    image: UploadFile = File(...)
 ):
-    image_bytes = await file.read()
+    image_bytes = await image.read()
 
-    result = detector.blur_image(
+    result_image = detector.blur_image(
         image_bytes
     )
 
-    return Response(
-        content=result,
-        media_type="image/jpeg"
-    )
+    return {
+        "success": True,
+        "message": "Privacy blur completed",
+        "image": result_image
+    }
