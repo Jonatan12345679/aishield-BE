@@ -28,9 +28,11 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://aishield:aishield123@postgres:5432/aishield_db
+      - DATABASE_URL=postgresql+psycopg2://aishield:aishield123@postgres:5432/aishield_db
       - MODEL_PRIVACY_DETECTION_PATH=/app/ml/privacy-detection-model/weights/best.onnx
-      - ML_MODEL_PATH=/app/ml/model/isolation_forest.pkl
+      - ML_MODEL_PATH=/app/ml/aishield/model/isolation_forest.pkl
+      - ML_SCALER_PATH=/app/ml/aishield/model/scaler.pkl
+      - ML_METRICS_PATH=/app/ml/aishield/model/metrics.json
       - DEBUG=True
     depends_on:
       postgres:
