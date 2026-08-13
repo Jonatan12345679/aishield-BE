@@ -13,10 +13,13 @@ class Settings(BaseSettings):
     DB_ECHO: bool = False
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
+    APP_ENV: str = "development"
 
     ML_MODEL_PATH: str = "./ml/model/isolation_forest.pkl"
     ML_SCALER_PATH: str = "ml/aishield/model/scaler.pkl"
     ML_METRICS_PATH: str = "ml/aishield/model/metrics.json"
+
+    ALLOWED_ORIGINS: str = ""
 
     # Risk threshold buat risk_calculator mapping skor utk level bahaya
 
