@@ -41,3 +41,5 @@ Thumbs.db
 .coverage
 htmlcov/
 
+
+ml/privacy-detection-model/
