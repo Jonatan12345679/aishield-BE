@@ -38,6 +38,7 @@ services:
       - MODEL_PRIVACY_DETECTION_STRUK_PATH=${MODEL_PRIVACY_DETECTION_STRUK_PATH}
       - DEBUG=${DEBUG}
       - APP_ENV=${APP_ENV}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
     depends_on:
       postgres:
         condition: service_healthy
