@@ -6,20 +6,21 @@ from app.core.config import settings
 from app.models.event import AttackType, RiskLevel
 
 COMMON_PORTS = {80, 443, 22, 3306, 5432, 21, 25, 8080, 53, 3389}
-ADMIN_SERVICE_PORTS = {22, 3306, 3389, 21, 23}
+ADMIN_SERVICE_PORTS = {22, 3306, 3389, 21, 23} # port yang sering terjadi brute force attack
 
 
-def calculate_risk_level(anomaly_score: float) -> RiskLevel:
+def calculate_risk_level(anomaly_score: float, is_anomaly:bool) -> RiskLevel:
     """
     Pemetaan skor anomali ke kategori RiskLevel berdasarkan konfigurasi threshold.
     """
+    if not is_anomaly:
+        return RiskLevel.LOW
     if anomaly_score <= settings.RISK_THRESHOLD_HIGH:
         return RiskLevel.CRITICAL
     elif anomaly_score <= settings.RISK_THRESHOLD_MEDIUM:
         return RiskLevel.HIGH
-    elif anomaly_score <= settings.RISK_THRESHOLD_LOW:
+    else:
         return RiskLevel.MEDIUM
-    return RiskLevel.LOW
 
 
 def classify_attack_type(event: dict[str, Any], is_anomaly: bool) -> AttackType:
@@ -83,9 +84,7 @@ def process_event(event: dict[str, Any], ml_result: dict[str, Any]) -> dict[str,
     is_anomaly = ml_result["is_anomaly"] or should_flag_as_anomaly_backup(event)
     anomaly_score = ml_result["anomaly_score"]
 
-    risk_level = calculate_risk_level(anomaly_score) if ml_result["is_anomaly"] else (
-        RiskLevel.MEDIUM if is_anomaly else RiskLevel.LOW
-    )
+    risk_level = calculate_risk_level(anomaly_score, is_anomaly)
     attack_type = classify_attack_type(event, is_anomaly)
 
     return {

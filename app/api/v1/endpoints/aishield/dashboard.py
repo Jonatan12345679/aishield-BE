@@ -11,16 +11,68 @@ from app.schemas.event import (
     EventResponse,
     ModelMetrics,
     RiskDistribution,
+    RiskScoreResponse,
 )
 from app.services.ml_engine import ml_engine
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
+# bobot "kerusakan" tiap risk level, dipakai buat itung risk score
+RISK_WEIGHTS = {
+    RiskLevel.LOW: 0,
+    RiskLevel.MEDIUM: 8,
+    RiskLevel.HIGH: 20,
+    RiskLevel.CRITICAL: 40,
+}
+
+RISK_SCORE_WINDOW = 100  # ambil N event terbaru buat itung skor, bukan semua histori
+
+
+def _score_to_level(score: int) -> str:
+    if score >= 80:
+        return "safe"
+    elif score >= 60:
+        return "watch"
+    elif score >= 35:
+        return "elevated"
+    return "critical"
+
+
+@router.get("/risk-score", response_model=RiskScoreResponse)
+def get_risk_score(db: Session = Depends(get_db)):
+    """
+    Skor risiko "sekarang", bukan rata-rata sepanjang masa kayak /summary.
+    Sengaja cuma liat N event paling baru, biar begitu ada serangan masuk
+    (via simulation atau traffic asli nanti), skor langsung kerasa turun -
+    ga ketutupan sama 10rb histori normal.
+    """
+    recent = (
+        db.query(NetworkEvent)
+        .order_by(NetworkEvent.timestamp.desc())
+        .limit(RISK_SCORE_WINDOW)
+        .all()
+    )
+
+    if not recent:
+        return RiskScoreResponse(score=100, level="safe", sample_size=0, critical_count=0, high_count=0)
+
+    total_weight = sum(RISK_WEIGHTS[e.risk_level] for e in recent)
+    avg_weight = total_weight / len(recent)
+    score = max(0, min(100, round(100 - avg_weight)))
+
+    return RiskScoreResponse(
+        score=score,
+        level=_score_to_level(score),
+        sample_size=len(recent),
+        critical_count=sum(1 for e in recent if e.risk_level == RiskLevel.CRITICAL),
+        high_count=sum(1 for e in recent if e.risk_level == RiskLevel.HIGH),
+    )
+
 
 @router.get("/summary", response_model=DashboardSummary)
 def get_summary(db: Session = Depends(get_db)):
     """
-    ini angka ringkasan buat StatCards & RiskGauge.
+    Angka-angka ringkasan buat StatCards & RiskGauge.
     Query-nya sengaja pakai agregasi SQL (count/group by) bukan ambil
     semua row terus dihitung di Python - biar tetep cepet walau datanya
     puluhan ribu baris.
@@ -112,7 +164,7 @@ def list_events(
 def get_model_metrics():
     """
     Hasil evaluasi training (precision/recall/F1 dari train.py), buat
-    ditampilin sbg bukti performa model - bukan cuma klaim atau asumsi doang.
+    ditampilin sbg bukti performa model - bukan cuma klaim doang.
     """
     metrics = ml_engine.get_metrics()
     return ModelMetrics(

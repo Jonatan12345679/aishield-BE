@@ -38,11 +38,8 @@ class Settings(BaseSettings):
     ]
 
     MODEL_PRIVACY_DETECTION_KTP_PATH: str
-
     MODEL_PRIVACY_DETECTION_PLAT_NOMOR_PATH: str
-
     MODEL_PRIVACY_DETECTION_QR_CODE_PATH: str
-
     MODEL_PRIVACY_DETECTION_STRUK_PATH: str
 
     class Config:

@@ -65,9 +65,18 @@ class DashboardSummary(BaseModel):
     latest_event_at: datetime | None
  
  
-class ModelMetrics(BaseModel):
-    """Isi metrics.json hasil training, ditampilin sbg bukti performa model ke juri."""
+class RiskScoreResponse(BaseModel):
+    """Skor risiko terkini, dihitung dari event terbaru - dipakai RiskGauge."""
  
+    score: int  
+    level: str 
+    sample_size: int  # berapa event terakhir yang dipakai buat hitung
+    critical_count: int
+    high_count: int
+    """Isi metrics.json hasil training, ditampilin sbg bukti performa model ke juri."""
+
+
+class ModelMetrics(BaseModel):
     n_estimators: int
     contamination: float
     train_rows: int
