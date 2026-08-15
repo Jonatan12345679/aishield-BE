@@ -1,4 +1,5 @@
 import base64
+
 import cv2
 import numpy as np
 import onnxruntime as ort
@@ -9,9 +10,12 @@ class PrivacyDetector:
     def __init__(
         self,
         model_path: str,
-        class_name: str
+        class_name: str,
+        threshold: float = 0.5
     ):
+        self.model_path = model_path
         self.class_name = class_name
+        self.threshold = threshold
 
         self.session = ort.InferenceSession(
             model_path,
@@ -26,6 +30,11 @@ class PrivacyDetector:
             np.frombuffer(image_bytes, np.uint8),
             cv2.IMREAD_COLOR
         )
+
+        if img is None:
+            raise ValueError(
+                "Failed to decode image"
+            )
 
         original_h, original_w = img.shape[:2]
 
@@ -82,7 +91,9 @@ class PrivacyDetector:
 
             x1, y1, x2, y2, conf, cls = det
 
-            if conf < 0.5:
+            confidence = float(conf)
+
+            if confidence < self.threshold:
                 continue
 
             x1 = max(
@@ -111,7 +122,7 @@ class PrivacyDetector:
             detections.append({
                 "class": self.class_name,
                 "confidence": round(
-                    float(conf),
+                    confidence,
                     4
                 ),
                 "box": {
@@ -140,6 +151,7 @@ class MultiPrivacyDetector:
         detections = []
 
         for detector in self.detectors:
+
             detections.extend(
                 detector.detect(
                     image_bytes
@@ -270,4 +282,7 @@ class MultiPrivacyDetector:
             buffer.tobytes()
         ).decode("utf-8")
 
-        return f"data:image/jpeg;base64,{image_base64}"
+        return (
+            f"data:image/jpeg;base64,"
+            f"{image_base64}"
+        )

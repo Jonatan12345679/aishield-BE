@@ -1,10 +1,10 @@
 task: detect
 mode: train
 model: yolo26n.pt
-data: datasets-split/struk-belanja/data.yaml
+data: datasets-split/struk8k/data.yaml
 epochs: 150
 time: null
-patience: 20
+patience: 22
 batch: 20
 imgsz: 640
 save: true
@@ -13,7 +13,7 @@ cache: false
 device: ''
 workers: 8
 project: null
-name: train-8
+name: train
 exist_ok: false
 pretrained: true
 cls_remap: true
@@ -113,4 +113,4 @@ auto_augment: randaugment
 erasing: 0.4
 cfg: null
 tracker: tracktrack.yaml
-save_dir: H:\backend-lomba\runs\detect\train-8
+save_dir: H:\backend-lomba\runs\detect\train
