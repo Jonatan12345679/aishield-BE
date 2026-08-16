@@ -1,22 +1,3 @@
-"""
-Synthetic Network Traffic Generator — AIShield
-
-Menghasilkan dataset event jaringan sintetis dengan pola statistik
-berbeda untuk traffic normal dan 4 jenis anomali:
-    - Port Scan
-    - Brute Force
-    - DDoS
-    - Data Exfiltration
-
-Output: CSV di ml/aishield/dataset/synthetic_events.csv
-
-Kolom 'label' HANYA dipakai untuk evaluasi model (precision/recall/F1)
-di train.py — TIDAK dipakai sebagai input fitur ke IsolationForest,
-karena model ini unsupervised.x`
-
-Cara pakai:
-    python ml/aishield/synthetic_generator.py --rows 10000
-"""
 
 from __future__ import annotations
 
