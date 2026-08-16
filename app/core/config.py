@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = 20
     APP_ENV: str = "development"
 
-    ML_MODEL_PATH: str = "./ml/model/isolation_forest.pkl"
+    ML_MODEL_PATH: str = "./ml/aishield/model/isolation_forest.pkl"
     ML_SCALER_PATH: str = "ml/aishield/model/scaler.pkl"
     ML_METRICS_PATH: str = "ml/aishield/model/metrics.json"
 
