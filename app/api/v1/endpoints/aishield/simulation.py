@@ -141,6 +141,16 @@ async def trigger_simulation(payload: SimulationRequest, db: Session = Depends(g
  
         if generated < count:
             await asyncio.sleep(BATCH_DELAY_SEC)
+
+        await manager.broadcast(
+        {
+            "type": "simulation_complete",
+            "attack_type": payload.attack_type.value,
+            "total_generated": generated,
+            "anomalies_detected": anomalies_detected,
+            "duration_sec": round(time.time() - start, 2),
+        }
+    )
  
     return SimulationResponse(
         attack_type=payload.attack_type.value,
