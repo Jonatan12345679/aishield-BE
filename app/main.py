@@ -23,7 +23,6 @@ app = FastAPI(
 )
 
 
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -31,6 +30,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 app.include_router(api_router, prefix="/api/v1")
 
@@ -42,3 +42,6 @@ def read_root():
         "version": "1.0.0"
     }
 
+
+for route in app.routes:
+    print(route)
