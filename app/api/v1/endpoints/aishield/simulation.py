@@ -1,3 +1,4 @@
+import asyncio
 import random
 import time
 from enum import Enum
@@ -6,6 +7,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api.v1.endpoints.aishield.websocket import manager
 from app.db.database import get_db
 from app.models.event import NetworkEvent
 from app.services import event_simulator
@@ -56,36 +58,38 @@ def _generate_raw_event(attack_type: SimulationType, ddos_target: tuple[str, int
 
 
 @router.post("/trigger", response_model=SimulationResponse)
-def trigger_simulation(payload: SimulationRequest, db: Session = Depends(get_db)):
+async def trigger_simulation(payload: SimulationRequest, db: Session = Depends(get_db)):
     """
     Generate event simulasi, lewatin ke ml_engine + risk_calculator kayak
     event beneran, terus disimpen ke DB dengan is_simulated=True.
-
+ 
     Sengaja generate per-batch kecil + delay dikit (bukan bulk insert
-    sekaligus), biar pas dashboard nge-poll tiap 5 detik.
+    sekaligus), biar pas dashboard nge-poll tiap 5 detik.Tiap batch juga di-broadcast
+    lewat WebSocket, jadi client yang connect ga perlu nunggu polling sama
+    sekali buat tau ada event baru.
     """
     count = payload.count or random.randint(30, 50)
-
+ 
     # DDoS butuh 1 target tetap sepanjang simulasi (banyak src beda nembak
     # 1 dst yang sama), jadi ditentuin sekali di awal, bukan tiap event
     ddos_target = (
         event_simulator._random_ip(internal=True),
         random.choice(event_simulator.COMMON_PORTS),
     )
-
+ 
     start = time.time()
     anomalies_detected = 0
     generated = 0
-
+ 
     while generated < count:
         batch_count = min(BATCH_SIZE, count - generated)
         batch_events = []
-
+ 
         for _ in range(batch_count):
             raw_event = _generate_raw_event(payload.attack_type, ddos_target)
             ml_result = ml_engine.predict_one(raw_event)
             final = process_event(raw_event, ml_result)
-
+ 
             db_event = NetworkEvent(
                 src_ip=raw_event["src_ip"],
                 dst_ip=raw_event["dst_ip"],
@@ -106,14 +110,38 @@ def trigger_simulation(payload: SimulationRequest, db: Session = Depends(get_db)
             batch_events.append(db_event)
             if final["is_anomaly"]:
                 anomalies_detected += 1
-
+ 
         db.add_all(batch_events)
         db.commit()
+        for e in batch_events:
+            db.refresh(e)
         generated += batch_count
-
+ 
+        # broadcast tiap event di batch ini ke semua client yang connect
+        await manager.broadcast(
+            {
+                "type": "new_events",
+                "events": [
+                    {
+                        "id": str(e.id),
+                        "timestamp": e.timestamp,
+                        "src_ip": e.src_ip,
+                        "dst_ip": e.dst_ip,
+                        "dst_port": e.dst_port,
+                        "protocol": e.protocol,
+                        "risk_level": e.risk_level.value,
+                        "attack_type": e.attack_type.value,
+                        "anomaly_score": e.anomaly_score,
+                        "is_anomaly": e.is_anomaly,
+                    }
+                    for e in batch_events
+                ],
+            }
+        )
+ 
         if generated < count:
-            time.sleep(BATCH_DELAY_SEC)
-
+            await asyncio.sleep(BATCH_DELAY_SEC)
+ 
     return SimulationResponse(
         attack_type=payload.attack_type.value,
         total_generated=generated,

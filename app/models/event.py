@@ -25,15 +25,6 @@ class AttackType(str, enum.Enum):
 
 
 class NetworkEvent(Base):
-    """
-    Merepresentasikan satu event/koneksi jaringan yang sudah diproses
-    oleh ML engine (IsolationForest) + risk_calculator.
-
-    Baris ini berasal dari salah satu dari 3 sumber:
-    1. synthetic_generator.py (seed data awal / training)
-    2. simulation.py (trigger serangan manual saat demo)
-    3. (opsional) real traffic listener, kalau sempat diimplementasikan
-    """
 
     __tablename__ = "network_events"
 
