@@ -1,851 +1,484 @@
-# AIShield Backend API
+# Aegis AI — Backend
 
-Backend API untuk **AIShield**, sebuah sistem berbasis FastAPI yang menyediakan fitur **Privacy Detection** menggunakan model object detection berbasis **ONNX**.
+Backend untuk Aegis AI, platform AI dengan 2 modul utama yang melayani 1 platform:
 
-Backend menerima gambar melalui API, menjalankan inferensi menggunakan model ONNX, mendeteksi objek yang termasuk kategori privasi, kemudian dapat melakukan **automatic blurring** pada area yang terdeteksi.
+- AIShield — engine deteksi anomali jaringan pakai Isolation Forest + REST API + WebSocket realtime
+- BlurAI — engine privacy detection pakai YOLO (ONNX) + auto-blur
 
-## ✨ Fitur
-
-* 🔍 Privacy/Object Detection menggunakan model ONNX
-* 🖼️ Upload gambar melalui REST API
-* 🔒 Automatic blurring pada objek sensitif
-* 📦 Model inference menggunakan ONNX Runtime
-* ⚡ FastAPI REST API
-* 🗄️ PostgreSQL untuk database
-* 🐳 Docker & Docker Compose
-* 📖 Swagger/OpenAPI documentation
-* 🔄 Hot reload untuk development menggunakan Docker
-* 🧩 Struktur backend terpisah antara API, service, model, dan konfigurasi
-
-### Objek Privacy
-
-Model saat ini digunakan untuk mendeteksi beberapa objek yang dianggap sensitif, seperti:
-
-| Class ID | Object     |
-| -------: | ---------- |
-|        0 | Plat Nomor |
-|        1 | QR Code    |
-|        2 | QR Code    |
-|        3 | QR Code    |
-|        8 | KTP        |
-
-> Class ID mengikuti konfigurasi model YOLO yang telah diekspor ke ONNX.
+Repo ini isinya backend FastAPI + PostgreSQL + Docker. Frontend ada di repo terpisah (`aishield-frontend`).
 
 ---
 
-# 🛠️ Tech Stack
+## 🖥️ Tech Stack
 
-## Backend
+### Core
+- Python 3.12
+- FastAPI 0.141 + Uvicorn
+- Pydantic v2 + Pydantic Settings
+- PostgreSQL 16 + SQLAlchemy 2.0 + psycopg2-binary
 
-* **Python 3.12**
-* **FastAPI**
-* **Uvicorn**
-* **Pydantic**
-* **Pydantic Settings**
+### Machine Learning
+- scikit-learn — Isolation Forest (AIShield)
+- pandas / numpy — data processing
+- ONNX Runtime — inference model YOLO (BlurAI)
+- OpenCV — image preprocessing & blurring (BlurAI)
+- Pillow — image handling (BlurAI)
 
-## Machine Learning
+### Infrastructure
+- Docker + Docker Compose
+- WebSocket untuk realtime broadcast
+- Swagger / ReDoc auto-generated API docs
 
-* **ONNX Runtime**
-* **OpenCV**
-* **NumPy**
-
-Model yang digunakan adalah model object detection yang telah diekspor ke format:
-
-```text
-ONNX (.onnx)
-```
-
-Backend **tidak membutuhkan Ultralytics untuk melakukan inference**.
-
-Inference dilakukan langsung menggunakan:
-
-```python
-onnxruntime
-```
-
-sehingga dependency production lebih ringan.
-
-## Database
-
-* **PostgreSQL 16**
-* **SQLAlchemy**
-* **psycopg2-binary**
-
-## Image Processing
-
-* **OpenCV**
-* **NumPy**
-* **Pillow**
-
-OpenCV digunakan untuk:
-
-* membaca gambar
-* resize
-* preprocessing
-* crop bounding box
-* Gaussian blur
-* encoding gambar kembali menjadi JPEG
-
-## Container
-
-* **Docker**
-* **Docker Compose**
-
----
-
-# 📦 Package yang Digunakan
-
-Berikut dependency utama yang digunakan oleh backend:
-
-```text
-annotated-doc==0.0.5
-annotated-types==0.8.0
-anyio==4.14.2
-click==8.4.2
-colorama==0.4.6
+### Dependencies (utama)
 fastapi==0.141.1
-greenlet==3.5.4
-h11==0.16.0
-idna==3.18
-joblib==1.5.3
-narwhals==2.24.0
-numpy==2.5.1
-pandas==3.0.5
+uvicorn==0.52.0
+sqlalchemy==2.0.51
 psycopg2-binary==2.9.12
 pydantic==2.13.4
-pydantic-core==2.46.4
 pydantic-settings==2.14.2
-python-dateutil==2.9.0.post0
-python-dotenv==1.2.2
 scikit-learn==1.9.0
-scipy==1.18.0
-six==1.17.0
-sqlalchemy==2.0.51
-starlette==1.3.1
-threadpoolctl==3.6.0
-typing-extensions==4.16.0
-typing-inspection==0.4.2
-tzdata==2026.3
-uvicorn==0.52.0
-
+pandas==3.0.5
 onnxruntime==1.28.0
 opencv-python-headless==4.10.0.84
 pillow==11.0.0
 python-multipart==0.0.20
+
+## 📦 Struktur Project
+```
+aishield-backend
+├─ .dockerignore
+├─ app
+│  ├─ api
+│  │  ├─ v1
+│  │  │  ├─ endpoints
+│  │  │  │  ├─ aishield
+│  │  │  │  │  ├─ dashboard.py
+│  │  │  │  │  ├─ simulation.py
+│  │  │  │  │  ├─ websocket.py
+│  │  │  │  │  └─ __init__.py
+│  │  │  │  ├─ privacy_detection
+│  │  │  │  │  ├─ detection.py
+│  │  │  │  │  ├─ realtime.py
+│  │  │  │  │  └─ __init__.py
+│  │  │  │  └─ __init__.py
+│  │  │  ├─ router.py
+│  │  │  └─ __init__.py
+│  │  └─ __init__.py
+│  ├─ core
+│  │  ├─ config.py
+│  │  └─ __init__.py
+│  ├─ db
+│  │  ├─ database.py
+│  │  └─ __init__.py
+│  ├─ main.py
+│  ├─ models
+│  │  ├─ event.py
+│  │  └─ __init__.py
+│  ├─ schemas
+│  │  ├─ detection.py
+│  │  ├─ event.py
+│  │  ├─ explain.py
+│  │  └─ __init__.py
+│  ├─ services
+│  │  ├─ event_simulator.py
+│  │  ├─ explain_engine.py
+│  │  ├─ ml_engine.py
+│  │  ├─ model_loader.py
+│  │  ├─ privacy_detector.py
+│  │  ├─ privacy_engine.py
+│  │  ├─ realtime_detector.py
+│  │  ├─ risk_calculator.py
+│  │  └─ __init__.py
+│  └─ __init__.py
+├─ docker-compose.yml
+├─ Dockerfile
+├─ ml
+│  ├─ aishield
+│  │  ├─ dataset
+│  │  │  └─ synthetic_events.csv
+│  │  ├─ model
+│  │  │  ├─ feature_columns.json
+│  │  │  ├─ metrics.json
+│  │  │  └─ scaler.pkl
+│  │  ├─ synthetic_generator.py
+│  │  └─ train.py
+│  └─ __init__.py
+├─ readme.md
+├─ requirements.txt
+└─ scripts
+   ├─ init.sql
+   ├─ reprocess_events.py
+   ├─ seed_from_csv.py
+   ├─ test_db_connection.py
+   └─ __init__.py
+
 ```
 
-> `python-multipart` diperlukan oleh FastAPI untuk menerima file upload menggunakan `UploadFile` dan `File`.
+ 
+---
+
+## ✨ Modul 1: AIShield (Network Anomaly Detection)
+
+Dashboard SOC buat monitoring anomali jaringan. Engine utamanya Isolation Forest — unsupervised ML yang flag event yang "aneh" dibanding baseline traffic normal.
+
+### Fitur
+- REST API buat dashboard stats, events, risk score, model metrics
+- Event Simulator — generate synthetic traffic (normal + 4 attack types) buat demo
+- ML Pipeline — scaler + Isolation Forest + risk calculator
+- WebSocket broadcast — realtime push event ke semua client
+- XAI Explain — z-score per fitur vs baseline, jelasin kenapa event di-flag
+- Top Attackers + IP Blocklist — block/unblock attacker, exclude dari risk score
+- CSV Export — laporan insiden siap audit
+
+### Attack Types yang Didukung
+| Type | Deskripsi |
+|---|---|
+| `normal` | traffic biasa |
+| `port_scan` | scanning port target |
+| `brute_force` | upaya login paksa berulang |
+| `ddos` | flood dari banyak source ke 1 target |
+| `data_exfiltration` | exfiltration data keluar |
+
+### Endpoints AIShield
+
+| Method | Path | Fungsi |
+|---|---|---|
+| GET | `/api/v1/dashboard/summary` | angka ringkasan buat StatCards |
+| GET | `/api/v1/dashboard/risk-score` | skor risiko realtime (window 100 event terbaru) |
+| GET | `/api/v1/dashboard/events` | list event (pagination + filter) |
+| GET | `/api/v1/dashboard/events/{id}/explain` | XAI penjelasan per-fitur |
+| GET | `/api/v1/dashboard/top-attackers` | leaderboard IP attacker |
+| POST | `/api/v1/dashboard/blocklist` | block IP |
+| DELETE | `/api/v1/dashboard/blocklist/{ip}` | unblock IP |
+| GET | `/api/v1/dashboard/model-metrics` | metrics.json (F1, recall, confusion matrix) |
+| GET | `/api/v1/dashboard/report` | export CSV |
+| POST | `/api/v1/simulation/trigger` | trigger simulasi serangan |
+| WS | `/api/v1/ws/events` | WebSocket realtime |
+
+### Model AIShield
+
+Ada di `ml/aishield/model/`:
+
+| File | Isi |
+|---|---|
+| `isolation_forest.pkl` | model yang sudah di-training |
+| `scaler.pkl` | StandardScaler (mean_ & scale_ dipakai buat XAI) |
+| `feature_columns.json` | urutan 9 fitur yang di-ekstrak |
+| `metrics.json` | hasil evaluasi (precision, recall, F1, confusion matrix, per-attack recall) |
+
+Feature engineering-nya single source of truth di `ml/aishield/train.py::engineer_features()` — dipanggil sama-sama oleh training, inference, dan XAI. Jadi penjelasan fitur selalu cocok dengan apa yang dilihat model.
 
 ---
 
-# 📁 Struktur Project
+## ✨ Modul 2: BlurAI (Privacy Detection)
 
-```text
-aishield-BE/
-│
-├── app/
-│   ├── main.py
-│   │
-│   ├── core/
-│   │   └── config.py
-│   │
-│   ├── api/
-│   │   └── v1/
-│   │       └── endpoints/
-│   │           └── detection.py
-│   │
-│   ├── services/
-│   │   ├── model_loader.py
-│   │   └── privacy_detector.py
-│   │
-│   ├── schemas/
-│   │
-│   ├── models/
-│   │
-│   └── db/
-│
-├── ml/
-│   └── privacy-detection-model/
-│       └── weights/
-│           └── best.onnx
-│
-├── tests/
-│
-├── requirements.txt
-├── Dockerfile
-├── docker-compose.yml
-├── .env
-├── .env.example
-└── README.md
-```
+Engine privacy protection. Terima gambar, deteksi area sensitif pakai YOLO (ONNX), otomatis blur region-nya.
 
----
+### Fitur
+- Privacy/Object Detection pakai model ONNX
+- Upload gambar via REST API (`multipart/form-data`)
+- Automatic blurring dengan Gaussian Blur OpenCV
+- ONNX Runtime — inference tanpa dependency Ultralytics (lebih ringan di production)
 
-# 🧠 Model Privacy Detection
+### Object Classes (Privacy)
 
-Model berada di:
+| Class ID | Object |
+|---|---|
+| 0 | Plat Nomor |
+| 1 | QR Code |
+| 2 | QR Code |
+| 3 | QR Code |
+| 8 | KTP |
 
-```text
-ml/privacy-detection-model/weights/best.onnx
-```
+> Class ID ikut konfigurasi YOLO yang di-export ke ONNX.
 
-Model menerima input dengan ukuran:
+### Endpoints BlurAI
 
-```text
-1 × 3 × 640 × 640
-```
+| Method | Path | Fungsi |
+|---|---|---|
+| POST | `/api/v1/privacy-detection/detect` | deteksi tanpa blur |
+| POST | `/api/v1/privacy-detection/blur` | deteksi + auto-blur |
 
-dan menghasilkan output:
+Request pakai `multipart/form-data` dengan field `file`.
 
-```text
-1 × 300 × 6
-```
-
-Format setiap detection:
-
-```text
-[x1, y1, x2, y2, confidence, class_id]
-```
-
-Contoh:
-
-```json
-{
-  "bbox": [
-    41.07,
-    168.47,
-    623.02,
-    622.79
-  ],
-  "confidence": 0.566,
-  "class_id": 8
-}
-```
-
-Backend kemudian mengubah koordinat hasil model dari ukuran `640 × 640` ke ukuran asli gambar.
-
----
-
-# ⚙️ Environment Variables
-
-Buat file:
-
-```text
-.env
-```
-
-Contoh:
-
-```env
-DATABASE_URL=postgresql://aishield:aishield123@localhost:5432/aishield_db
-
-MODEL_PRIVACY_DETECTION_PATH=./ml/privacy-detection-model/weights/best.onnx
-
-DEBUG=True
-```
-
-Untuk Docker, path model menggunakan path di dalam container:
-
-```env
-MODEL_PRIVACY_DETECTION_PATH=/app/ml/privacy-detection-model/weights/best.onnx
-```
-
----
-
-# 🐍 Menjalankan Tanpa Docker
-
-## 1. Clone Repository
-
-```bash
-git clone <url-repository>
-cd aishield-BE
-```
-
-## 2. Buat Virtual Environment
-
-Windows:
-
-```bash
-python -m venv venv
-```
-
-Aktifkan:
-
-```bash
-venv\Scripts\activate
-```
-
-Linux/Mac:
-
-```bash
-source venv/bin/activate
-```
-
-## 3. Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-## 4. Jalankan PostgreSQL
-
-Pastikan PostgreSQL sudah berjalan dan database:
-
-```text
-aishield_db
-```
-
-tersedia.
-
-Contoh:
-
-```sql
-CREATE USER aishield WITH PASSWORD 'aishield123';
-
-CREATE DATABASE aishield_db OWNER aishield;
-```
-
-## 5. Pastikan Model Ada
-
-Pastikan file berikut tersedia:
-
-```text
-ml/privacy-detection-model/weights/best.onnx
-```
-
-## 6. Jalankan FastAPI
-
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-API tersedia di:
-
-```text
-http://localhost:8000
-```
-
----
-
-# 🐳 Menjalankan Dengan Docker
-
-Docker merupakan metode yang direkomendasikan untuk development maupun deployment.
-
-## 1. Pastikan Docker tersedia
-
-```bash
-docker --version
-docker compose version
-```
-
-## 2. Build dan Jalankan
-
-```bash
-docker compose up --build
-```
-
-atau menjalankan di background:
-
-```bash
-docker compose up -d --build
-```
-
-Docker Compose akan menjalankan:
-
-```text
-PostgreSQL
-    ↓
-AIShield FastAPI
-```
-
----
-
-# 🔄 Development dengan Hot Reload
-
-Backend menggunakan:
-
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-dan source code di-mount ke container.
-
-Contoh:
-
-```yaml
-volumes:
-  - ./app:/app/app
-  - ./ml:/app/ml
-```
-
-Dengan konfigurasi tersebut, perubahan pada file Python di:
-
-```text
-app/
-```
-
-akan langsung terdeteksi oleh Uvicorn.
-
-Perubahan model di:
-
-```text
-ml/
-```
-
-juga tidak membutuhkan rebuild image karena folder tersebut di-mount sebagai volume.
-
-### Catatan
-
-Perubahan pada:
-
-```text
-requirements.txt
-Dockerfile
-```
-
-tetap membutuhkan rebuild:
-
-```bash
-docker compose up --build
-```
-
-Sedangkan perubahan biasa pada:
-
-```text
-app/
-ml/
-```
-
-tidak perlu rebuild image.
-
----
-
-# 🔌 API Endpoint
-
-## Health Check
-
-```http
-GET /
-```
-
-Response:
-
-```json
-{
-  "status": "online",
-  "system": "AIShield Engine",
-  "version": "1.0.0"
-}
-```
-
----
-
-# 🔍 Privacy Detection
-
-Endpoint:
-
-```http
-POST /api/v1/detect
-```
-
-Request menggunakan:
-
-```text
-multipart/form-data
-```
-
-dengan field:
-
-```text
-file
-```
-
-Contoh menggunakan cURL:
-
-```bash
-curl -X POST "http://localhost:8000/api/v1/detect" \
-  -H "accept: application/json" \
-  -H "Content-Type: multipart/form-data" \
-  -F "file=@image.jpg"
-```
-
-Contoh response:
-
+Response `detect`:
 ```json
 {
   "count": 1,
   "detections": [
     {
-      "bbox": [
-        41.0748291015625,
-        168.47264099121094,
-        623.0267944335938,
-        622.7951049804688
-      ],
-      "confidence": 0.56645268201828,
+      "bbox": [41.07, 168.47, 623.02, 622.79],
+      "confidence": 0.566,
       "class_id": 8
     }
   ]
 }
-```
+
+
+## 🚀 Cara Jalankan
+docker --version
+docker compose version
+
+## setup env
+# Aegis AI — Backend
+
+Backend untuk Aegis AI, platform AI dengan 2 modul utama yang melayani 1 platform:
+
+- AIShield — engine deteksi anomali jaringan pakai Isolation Forest + REST API + WebSocket realtime
+- BlurAI — engine privacy detection pakai YOLO (ONNX) + auto-blur
+
+Repo ini isinya backend FastAPI + PostgreSQL + Docker. Frontend ada di repo terpisah (`aishield-frontend`).
 
 ---
 
-# 🖼️ Privacy Blurring
+## 🖥️ Tech Stack
 
-Backend juga menyediakan proses untuk melakukan blur pada area yang terdeteksi.
+### Core
+- Python 3.12
+- FastAPI 0.141 + Uvicorn
+- Pydantic v2 + Pydantic Settings
+- PostgreSQL 16 + SQLAlchemy 2.0 + psycopg2-binary
 
-Alurnya:
+### Machine Learning
+- scikit-learn — Isolation Forest (AIShield)
+- pandas / numpy — data processing
+- ONNX Runtime — inference model YOLO (BlurAI)
+- OpenCV — image preprocessing & blurring (BlurAI)
+- Pillow — image handling (BlurAI)
 
-```text
-Upload Image
-      │
-      ▼
-Decode Image
-      │
-      ▼
-Resize 640 × 640
-      │
-      ▼
-ONNX Inference
-      │
-      ▼
-Detection
-      │
-      ▼
-Filter Confidence
-      │
-      ▼
-Convert BBox
-to Original Image
-      │
-      ▼
-Gaussian Blur
-      │
-      ▼
-Encode JPEG
-      │
-      ▼
-Return Image
-```
+### Infrastructure
+- Docker + Docker Compose
+- WebSocket untuk realtime broadcast
+- Swagger / ReDoc auto-generated API docs
 
-Area yang termasuk kategori privacy akan diproses menggunakan:
-
-```python
-cv2.GaussianBlur()
-```
-
-Contoh:
-
-```python
-blurred = cv2.GaussianBlur(
-    roi,
-    (51, 51),
-    30
-)
-```
-
----
-
-# 🔐 Privacy Class Filtering
-
-Backend dapat menentukan class mana yang harus diblur.
-
-Contoh:
-
-```python
-PRIVACY_CLASSES = {
-    0,  # plat_nomor
-    1,  # QR_CODE
-    2,  # qr_code
-    3,  # qrcode
-    8   # ktp
-}
-```
-
-Class yang tidak termasuk dalam daftar tersebut tidak akan diblur.
-
-Hal ini memungkinkan model memiliki banyak class tetapi hanya sebagian class yang dianggap sebagai informasi sensitif.
-
----
-
-# 📖 API Documentation
-
-Setelah server berjalan, dokumentasi Swagger dapat diakses melalui:
-
-```text
-http://localhost:8000/docs
-```
-
-ReDoc:
-
-```text
-http://localhost:8000/redoc
-```
-
-Swagger dapat digunakan untuk langsung melakukan testing upload gambar tanpa menggunakan Postman.
-
----
-
-# 🗄️ PostgreSQL
-
-Database menggunakan:
-
-```text
-PostgreSQL 16
-```
-
-Konfigurasi Docker:
-
-```text
-Host     : postgres
-Port     : 5432
-Database : aishield_db
-Username : aishield
-Password : aishield123
-```
-
-Ketika backend berjalan di Docker Compose, backend harus menggunakan hostname:
-
-```text
-postgres
-```
-
-bukan:
-
-```text
-localhost
-```
-
-Contoh:
-
-```env
-DATABASE_URL=postgresql://aishield:aishield123@postgres:5432/aishield_db
-```
-
----
-
-# 🛑 Menghentikan Docker
-
-Untuk menghentikan container:
-
-```bash
-docker compose down
-```
-
-Untuk menghapus container sekaligus volume database:
-
-```bash
-docker compose down -v
-```
-
-> `-v` akan menghapus data PostgreSQL yang tersimpan pada Docker volume.
-
----
-
-# 🔧 Troubleshooting
-
-## Model tidak ditemukan
-
-Jika muncul:
-
-```text
-NO_SUCHFILE : Load model ... best.onnx failed
-```
-
-cek:
-
-```bash
-docker exec -it aishield-api bash
-```
-
-kemudian:
-
-```bash
-find /app/ml -name "*.onnx"
-```
-
-Model seharusnya berada di:
-
-```text
-/app/ml/privacy-detection-model/weights/best.onnx
-```
-
-Pastikan `docker-compose.yml` memiliki:
-
-```yaml
-volumes:
-  - ./ml:/app/ml
-```
-
----
-
-## `python-multipart` tidak ditemukan
-
-Jika muncul:
-
-```text
-Form data requires "python-multipart" to be installed
-```
-
-pastikan terdapat:
-
-```text
+### Dependencies (utama)
+fastapi==0.141.1
+uvicorn==0.52.0
+sqlalchemy==2.0.51
+psycopg2-binary==2.9.12
+pydantic==2.13.4
+pydantic-settings==2.14.2
+scikit-learn==1.9.0
+pandas==3.0.5
+onnxruntime==1.28.0
+opencv-python-headless==4.10.0.84
+pillow==11.0.0
 python-multipart==0.0.20
+
+## 📦 Struktur Project
+```
+aishield-backend
+├─ .dockerignore
+├─ app
+│  ├─ api
+│  │  ├─ v1
+│  │  │  ├─ endpoints
+│  │  │  │  ├─ aishield
+│  │  │  │  │  ├─ dashboard.py
+│  │  │  │  │  ├─ simulation.py
+│  │  │  │  │  ├─ websocket.py
+│  │  │  │  │  └─ __init__.py
+│  │  │  │  ├─ privacy_detection
+│  │  │  │  │  ├─ detection.py
+│  │  │  │  │  ├─ realtime.py
+│  │  │  │  │  └─ __init__.py
+│  │  │  │  └─ __init__.py
+│  │  │  ├─ router.py
+│  │  │  └─ __init__.py
+│  │  └─ __init__.py
+│  ├─ core
+│  │  ├─ config.py
+│  │  └─ __init__.py
+│  ├─ db
+│  │  ├─ database.py
+│  │  └─ __init__.py
+│  ├─ main.py
+│  ├─ models
+│  │  ├─ event.py
+│  │  └─ __init__.py
+│  ├─ schemas
+│  │  ├─ detection.py
+│  │  ├─ event.py
+│  │  ├─ explain.py
+│  │  └─ __init__.py
+│  ├─ services
+│  │  ├─ event_simulator.py
+│  │  ├─ explain_engine.py
+│  │  ├─ ml_engine.py
+│  │  ├─ model_loader.py
+│  │  ├─ privacy_detector.py
+│  │  ├─ privacy_engine.py
+│  │  ├─ realtime_detector.py
+│  │  ├─ risk_calculator.py
+│  │  └─ __init__.py
+│  └─ __init__.py
+├─ docker-compose.yml
+├─ Dockerfile
+├─ ml
+│  ├─ aishield
+│  │  ├─ dataset
+│  │  │  └─ synthetic_events.csv
+│  │  ├─ model
+│  │  │  ├─ feature_columns.json
+│  │  │  ├─ metrics.json
+│  │  │  └─ scaler.pkl
+│  │  ├─ synthetic_generator.py
+│  │  └─ train.py
+│  └─ __init__.py
+├─ readme.md
+├─ requirements.txt
+└─ scripts
+   ├─ init.sql
+   ├─ reprocess_events.py
+   ├─ seed_from_csv.py
+   ├─ test_db_connection.py
+   └─ __init__.py
+
 ```
 
-di `requirements.txt`.
+ 
+---
 
-Kemudian rebuild:
+## ✨ Modul 1: AIShield (Network Anomaly Detection)
 
-```bash
-docker compose up --build
-```
+Dashboard SOC buat monitoring anomali jaringan. Engine utamanya Isolation Forest — unsupervised ML yang flag event yang "aneh" dibanding baseline traffic normal.
+
+### Fitur
+- REST API buat dashboard stats, events, risk score, model metrics
+- Event Simulator — generate synthetic traffic (normal + 4 attack types) buat demo
+- ML Pipeline — scaler + Isolation Forest + risk calculator
+- WebSocket broadcast — realtime push event ke semua client
+- XAI Explain — z-score per fitur vs baseline, jelasin kenapa event di-flag
+- Top Attackers + IP Blocklist — block/unblock attacker, exclude dari risk score
+- CSV Export — laporan insiden siap audit
+
+### Attack Types yang Didukung
+| Type | Deskripsi |
+|---|---|
+| `normal` | traffic biasa |
+| `port_scan` | scanning port target |
+| `brute_force` | upaya login paksa berulang |
+| `ddos` | flood dari banyak source ke 1 target |
+| `data_exfiltration` | exfiltration data keluar |
+
+### Endpoints AIShield
+
+| Method | Path | Fungsi |
+|---|---|---|
+| GET | `/api/v1/dashboard/summary` | angka ringkasan buat StatCards |
+| GET | `/api/v1/dashboard/risk-score` | skor risiko realtime (window 100 event terbaru) |
+| GET | `/api/v1/dashboard/events` | list event (pagination + filter) |
+| GET | `/api/v1/dashboard/events/{id}/explain` | XAI penjelasan per-fitur |
+| GET | `/api/v1/dashboard/top-attackers` | leaderboard IP attacker |
+| POST | `/api/v1/dashboard/blocklist` | block IP |
+| DELETE | `/api/v1/dashboard/blocklist/{ip}` | unblock IP |
+| GET | `/api/v1/dashboard/model-metrics` | metrics.json (F1, recall, confusion matrix) |
+| GET | `/api/v1/dashboard/report` | export CSV |
+| POST | `/api/v1/simulation/trigger` | trigger simulasi serangan |
+| WS | `/api/v1/ws/events` | WebSocket realtime |
+
+### Model AIShield
+
+Ada di `ml/aishield/model/`:
+
+| File | Isi |
+|---|---|
+| `isolation_forest.pkl` | model yang sudah di-training |
+| `scaler.pkl` | StandardScaler (mean_ & scale_ dipakai buat XAI) |
+| `feature_columns.json` | urutan 9 fitur yang di-ekstrak |
+| `metrics.json` | hasil evaluasi (precision, recall, F1, confusion matrix, per-attack recall) |
+
+Feature engineering-nya single source of truth di `ml/aishield/train.py::engineer_features()` — dipanggil sama-sama oleh training, inference, dan XAI. Jadi penjelasan fitur selalu cocok dengan apa yang dilihat model.
 
 ---
 
-## Perubahan Python tidak terlihat
+## ✨ Modul 2: BlurAI (Privacy Detection)
 
-Pastikan backend menggunakan:
+Engine privacy protection. Terima gambar, deteksi area sensitif pakai YOLO (ONNX), otomatis blur region-nya.
 
-```bash
---reload
-```
+### Fitur
+- Privacy/Object Detection pakai model ONNX
+- Upload gambar via REST API (`multipart/form-data`)
+- Automatic blurring dengan Gaussian Blur OpenCV
+- ONNX Runtime — inference tanpa dependency Ultralytics (lebih ringan di production)
 
-dan:
+### Object Classes (Privacy)
 
-```yaml
-volumes:
-  - ./app:/app/app
-```
+| Class ID | Object |
+|---|---|
+| 0 | Plat Nomor |
+| 1 | QR Code |
+| 2 | QR Code |
+| 3 | QR Code |
+| 8 | KTP |
 
-Kemudian lihat log:
+> Class ID ikut konfigurasi YOLO yang di-export ke ONNX.
 
-```bash
-docker compose logs -f backend
-```
+### Endpoints BlurAI
 
----
+| Method | Path | Fungsi |
+|---|---|---|
+| POST | `/api/v1/privacy-detection/detect` | deteksi tanpa blur |
+| POST | `/api/v1/privacy-detection/blur` | deteksi + auto-blur |
 
-## Dependency berubah
+Request pakai `multipart/form-data` dengan field `file`.
 
-Jika `requirements.txt` berubah, jalankan:
+Response `detect`:
+```json
+{
+  "count": 1,
+  "detections": [
+    {
+      "bbox": [41.07, 168.47, 623.02, 622.79],
+      "confidence": 0.566,
+      "class_id": 8
+    }
+  ]
+}
 
-```bash
-docker compose up --build
-```
 
-Karena dependency di-install ketika Docker image dibuat.
+## 🚀 Cara Jalankan
+docker --version
+docker compose version
 
----
+## setup env
+DATABASE_URL=postgresql+psycopg2://aishield:aishield123@postgres:5432/aishield_db
+DB_ECHO=false
+DB_POOL_SIZE=10
 
-# 🚀 Production
+# model paths (di dalam container)
+ML_MODEL_PATH=./ml/aishield/model/isolation_forest.pkl
+ML_SCALER_PATH=ml/aishield/model/scaler.pkl
+ML_METRICS_PATH=ml/aishield/model/metrics.json
+ML_FEATURE_COLUMNS_PATH=ml/aishield/model/feature_columns.json
 
-Untuk production, konfigurasi development sebaiknya disesuaikan.
+MODEL_PRIVACY_DETECTION_KTP_PATH=./ml/privacy-detection-model/weights/best.onnx
+MODEL_PRIVACY_DETECTION_PLAT_NOMOR_PATH=./ml/privacy-detection-model/weights/best.onnx
+MODEL_PRIVACY_DETECTION_QR_CODE_PATH=./ml/privacy-detection-model/weights/best.onnx
+MODEL_PRIVACY_DETECTION_STRUK_PATH=./ml/privacy-detection-model/weights/best.onnx
+MODEL_PRIVACY_DETECTION_STRUK_AND_KTP_PATH=./ml/privacy-detection-model/weights/best.onnx
 
-Contohnya:
+DEBUG=true
+APP_ENV=development
 
-* nonaktifkan `--reload`
-* gunakan environment variable production
-* jangan expose PostgreSQL secara publik
-* gunakan reverse proxy seperti Nginx
-* gunakan HTTPS
-* gunakan secret yang aman
-* gunakan Docker image yang lebih minimal
-* gunakan resource limit untuk container
-* gunakan model ONNX langsung dengan ONNX Runtime
+## build and run
+docker compose up -d --build
 
-Development:
+ ## Cek
+API: http://localhost:8000
+Swagger: http://localhost:8000/docs
+ReDoc: http://localhost:8000/redoc
+WebSocket: ws://localhost:8000/api/v1/ws/events
 
-```bash
+development:
+``
+bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
 
-Production:
-
-```bash
+Production
+``
+bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
 
----
-
-# 📌 Architecture
-
-Secara sederhana, AIShield Backend menggunakan arsitektur:
-
-```text
-                 ┌──────────────┐
-                 │   Client     │
-                 │ Web / Mobile │
-                 └──────┬───────┘
-                        │
-                        │ HTTP
-                        ▼
-              ┌──────────────────┐
-              │     FastAPI      │
-              │      Router      │
-              └────────┬─────────┘
-                       │
-                       ▼
-              ┌──────────────────┐
-              │ Privacy Detector │
-              │     Service      │
-              └────────┬─────────┘
-                       │
-                       ▼
-              ┌──────────────────┐
-              │   ONNX Runtime   │
-              │   best.onnx      │
-              └────────┬─────────┘
-                       │
-                       ▼
-              ┌──────────────────┐
-              │   Detection      │
-              │ Bounding Boxes   │
-              └────────┬─────────┘
-                       │
-                       ▼
-              ┌──────────────────┐
-              │  Image Blurring  │
-              │     OpenCV       │
-              └────────┬─────────┘
-                       │
-                       ▼
-                 Processed Image
-```
-
----
-
-# 👨‍💻 Development
-
-Untuk menjalankan project dalam mode development:
-
-```bash
-docker compose up
-```
-
-Kemudian buka:
-
-```text
-http://localhost:8000/docs
-```
-
-Setelah melakukan perubahan pada:
-
-```text
-app/
-```
-
-Uvicorn akan melakukan reload secara otomatis.
-
----
-
-# 📄 License
-
-Project ini dikembangkan untuk kebutuhan **AIShield**.
-
----
-
-# 👥 Contributors
-
-AIShield Development Team
+🤝 Tim
+Aegis AI Team
