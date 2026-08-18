@@ -4,9 +4,11 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.schemas.explain import ExplainResponse
 from app.services.explain_engine import explain_event as xai_explain
+from sqlalchemy import desc
+from pydantic import BaseModel
 
 from app.db.database import get_db
-from app.models.event import AttackType, NetworkEvent, RiskLevel
+from app.models.event import AttackType, NetworkEvent, RiskLevel, BlockedIP
 from app.schemas.event import (
     AttackTypeDistribution,
     DashboardSummary,
@@ -19,6 +21,10 @@ from app.schemas.event import (
 from app.services.ml_engine import ml_engine
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
+
+class BlockRequest(BaseModel):
+    ip: str
+    reason: str | None = None
 
 # bobot "kerusakan" tiap risk level, dipakai buat itung risk score
 RISK_WEIGHTS = {
@@ -49,8 +55,10 @@ def get_risk_score(db: Session = Depends(get_db)):
     (via simulation atau traffic asli nanti), skor langsung kerasa turun -
     ga ketutupan sama 10rb histori normal.
     """
+    blocked_sub = db.query(BlockedIP.ip).subquery()
     recent = (
         db.query(NetworkEvent)
+        .filter(~NetworkEvent.src_ip.in_(blocked_sub)) 
         .order_by(NetworkEvent.timestamp.desc())
         .limit(RISK_SCORE_WINDOW)
         .all()
@@ -155,11 +163,19 @@ def list_events(
         .all()
     )
 
+    blocked_set = {r.ip for r in db.query(BlockedIP.ip).all()}
+
+    events_out = []
+    for e in events:
+        resp = EventResponse.model_validate(e)
+        resp.is_blocked = e.src_ip in blocked_set
+        events_out.append(resp)
+
     return EventListResponse(
         total=total,
         page=page,
         page_size=page_size,
-        events=[EventResponse.model_validate(e) for e in events],
+        events=events_out,
     )
 
 
@@ -184,4 +200,53 @@ def explain_event_endpoint(event_id: str, db: Session = Depends(get_db)):
     event = db.query(NetworkEvent).filter(NetworkEvent.id == event_id).first()
     if event is None:
         raise HTTPException(status_code=404, detail="Event tidak ditemukan")
-    return xai_explain(event)   
+    return xai_explain(event)
+
+@router.get("/top-attackers")
+def get_top_attackers(limit: int = Query(5, ge=1, le=20), db: Session = Depends(get_db)):
+    """IP dengan anomali terbanyak - leaderboard attacker buat panel respond."""
+    rows = (
+        db.query(
+            NetworkEvent.src_ip,
+            func.count(NetworkEvent.id).label("cnt"),
+            func.max(NetworkEvent.timestamp).label("last_seen"),
+        )
+        .filter(NetworkEvent.is_anomaly.is_(True))
+        .filter(NetworkEvent.attack_type != AttackType.NONE)
+        .group_by(NetworkEvent.src_ip)
+        .order_by(desc("cnt"))
+        .limit(limit)
+        .all()
+    )
+    blocked = {r.ip for r in db.query(BlockedIP.ip).all()}
+
+    return {
+        "attackers": [
+            {
+                "ip": r.src_ip,
+                "count": r.cnt,
+                "last_seen": r.last_seen,
+                "is_blocked": r.src_ip in blocked,
+            }
+            for r in rows
+        ]
+    }   
+
+@router.post("/blocklist", status_code=201)
+def block_ip(payload: BlockRequest, db: Session = Depends(get_db)):
+    exists = db.query(BlockedIP).filter(BlockedIP.ip == payload.ip).first()
+    if exists:
+        raise HTTPException(status_code=409, detail="IP sudah diblok")
+    db.add(BlockedIP(ip=payload.ip, reason=payload.reason or "manual block"))
+    db.commit()
+    return {"status": "blocked", "ip": payload.ip}
+
+
+@router.delete("/blocklist/{ip}")
+def unblock_ip(ip: str, db: Session = Depends(get_db)):
+    row = db.query(BlockedIP).filter(BlockedIP.ip == ip).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="IP tidak ada di blocklist")
+    db.delete(row)
+    db.commit()
+    return {"status": "unblocked", "ip": ip}

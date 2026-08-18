@@ -83,3 +83,10 @@ class NetworkEvent(Base):
             f"<NetworkEvent {self.src_ip}->{self.dst_ip}:{self.dst_port} "
             f"risk={self.risk_level} attack={self.attack_type}>"
         )
+
+class BlockedIP(Base):
+    __tablename__ = "blocked_ips"
+
+    ip: Mapped[str] = mapped_column(String(45), primary_key=True)
+    reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    blocked_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

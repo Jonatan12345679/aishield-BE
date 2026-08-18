@@ -7,7 +7,7 @@ from app.models.event import AttackType, RiskLevel
 
 class EventResponse(BaseModel):
     """Satu baris event buat ditampilin di LogStream/ThreatTimeline."""
- 
+    
     model_config = ConfigDict(from_attributes=True)  # ini fungi agar bisa langsung dari objek SQLAlchemy
  
     id: UUID
@@ -24,6 +24,7 @@ class EventResponse(BaseModel):
     risk_level: RiskLevel
     attack_type: AttackType
     is_simulated: bool
+    is_blocked: bool = False
  
  
 class EventListResponse(BaseModel):

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.aishield.websocket import manager
 from app.db.database import get_db
-from app.models.event import NetworkEvent
+from app.models.event import BlockedIP,NetworkEvent
 from app.services import event_simulator
 from app.services.ml_engine import ml_engine
 from app.services.risk_calculator import process_event
@@ -76,6 +76,8 @@ async def trigger_simulation(payload: SimulationRequest, db: Session = Depends(g
         event_simulator._random_ip(internal=True),
         random.choice(event_simulator.COMMON_PORTS),
     )
+
+    blocked_ips = [r[0] for r in db.query(BlockedIP.ip).all()]
  
     start = time.time()
     anomalies_detected = 0
@@ -87,6 +89,9 @@ async def trigger_simulation(payload: SimulationRequest, db: Session = Depends(g
  
         for _ in range(batch_count):
             raw_event = _generate_raw_event(payload.attack_type, ddos_target)
+            if payload.attack_type != SimulationType.NORMAL and blocked_ips and random.random() < 0.4:
+                raw_event["src_ip"] = random.choice(blocked_ips)
+                
             ml_result = ml_engine.predict_one(raw_event)
             final = process_event(raw_event, ml_result)
  
