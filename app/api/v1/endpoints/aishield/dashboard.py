@@ -197,6 +197,8 @@ def get_model_metrics():
         test_rows=metrics.get("test_rows", 0),
         binary_metrics=metrics.get("binary_metrics", {}),
         per_attack_type_recall=metrics.get("per_attack_type_recall", {}),
+        classification_report=metrics.get("classification_report", {}),  
+        confusion_matrix=metrics.get("confusion_matrix", {}),            
     )
 
 @router.get("/events/{event_id}/explain", response_model=ExplainResponse)

@@ -84,3 +84,5 @@ class ModelMetrics(BaseModel):
     test_rows: int
     binary_metrics: dict
     per_attack_type_recall: dict
+    classification_report: dict = {}   
+    confusion_matrix: dict = {}        
