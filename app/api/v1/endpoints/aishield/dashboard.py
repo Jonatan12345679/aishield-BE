@@ -6,6 +6,10 @@ from app.schemas.explain import ExplainResponse
 from app.services.explain_engine import explain_event as xai_explain
 from sqlalchemy import desc
 from pydantic import BaseModel
+import csv
+import io
+from datetime import datetime
+from fastapi.responses import StreamingResponse
 
 from app.db.database import get_db
 from app.models.event import AttackType, NetworkEvent, RiskLevel, BlockedIP
@@ -250,3 +254,52 @@ def unblock_ip(ip: str, db: Session = Depends(get_db)):
     db.delete(row)
     db.commit()
     return {"status": "unblocked", "ip": ip}
+
+@router.get("/report")
+def export_report(
+    limit: int = Query(1000, ge=1, le=10000),
+    db: Session = Depends(get_db),
+):
+    """
+    Export anomali terbaru sebagai CSV - laporan insiden buat audit.
+    Sengaja pakai limit (bukan range tanggal) biar ga ribet soal timezone.
+    """
+    events = (
+        db.query(NetworkEvent)
+        .filter(NetworkEvent.is_anomaly.is_(True))
+        .order_by(NetworkEvent.timestamp.desc())
+        .limit(limit)
+        .all()
+    )
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(
+        [
+            "timestamp", "src_ip", "dst_ip", "dst_port", "protocol",
+            "attack_type", "risk_level", "anomaly_score", "is_simulated",
+        ]
+    )
+    for e in events:
+        writer.writerow(
+            [
+                e.timestamp.isoformat(),
+                e.src_ip,
+                e.dst_ip,
+                e.dst_port,
+                getattr(e.protocol, "value", e.protocol),
+                getattr(e.attack_type, "value", e.attack_type),
+                getattr(e.risk_level, "value", e.risk_level),
+                e.anomaly_score,
+                e.is_simulated,
+            ]
+        )
+
+    buffer.seek(0)
+    filename = f"aishield_incident_report_{datetime.now():%Y%m%d_%H%M%S}.csv"
+
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )    

@@ -33,10 +33,6 @@ def get_db() -> Generator[Session, None, None]:
     Dependency FastAPI untuk inject DB session per-request.
     Session otomatis ditutup setelah request selesai, walau terjadi error.
 
-    Contoh pakai di endpoint:
-        @router.get("/events")
-        def list_events(db: Session = Depends(get_db)):
-            ...
     """
     db = SessionLocal()
     try:
@@ -50,7 +46,5 @@ def init_db() -> None:
     Buat semua tabel berdasarkan model yang sudah di-import.
     Cocok untuk development/demo. Untuk production sebaiknya pakai Alembic.
 
-    PENTING: pastikan semua module models/*.py sudah di-import sebelum
-    fungsi ini dipanggil, supaya Base.metadata mengenal semua tabel.
     """
     Base.metadata.create_all(bind=engine)
