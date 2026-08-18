@@ -5,11 +5,16 @@ from app.services.privacy_detector import (
 )
 
 detector = MultiPrivacyDetector([
+    # PrivacyDetector(
+    #     settings.MODEL_PRIVACY_DETECTION_KTP_PATH,
+    #     "ktp",
+    #     threshold=0.80
+    # ),
     PrivacyDetector(
-        settings.MODEL_PRIVACY_DETECTION_KTP_PATH,
-        "ktp",
+        settings.MODEL_PRIVACY_DETECTION_STRUK_AND_KTP_PATH,
         threshold=0.80
     ),
+    
     PrivacyDetector(
         settings.MODEL_PRIVACY_DETECTION_PLAT_NOMOR_PATH,
         "plat_nomor",
@@ -20,9 +25,9 @@ detector = MultiPrivacyDetector([
         "qr_code",
         threshold=0.90
     ),
-    PrivacyDetector(
-        settings.MODEL_PRIVACY_DETECTION_STRUK_PATH,
-        "struk",
-        threshold=0.90
-    )
+    # PrivacyDetector(
+    #     settings.MODEL_PRIVACY_DETECTION_STRUK_PATH,
+    #     "struk",
+    #     threshold=0.90
+    # )
 ])
