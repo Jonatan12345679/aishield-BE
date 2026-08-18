@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from fastapi import HTTPException
+from app.schemas.explain import ExplainResponse
+from app.services.explain_engine import explain_event as xai_explain
 
 from app.db.database import get_db
 from app.models.event import AttackType, NetworkEvent, RiskLevel
@@ -175,3 +178,10 @@ def get_model_metrics():
         binary_metrics=metrics.get("binary_metrics", {}),
         per_attack_type_recall=metrics.get("per_attack_type_recall", {}),
     )
+
+@router.get("/events/{event_id}/explain", response_model=ExplainResponse)
+def explain_event_endpoint(event_id: str, db: Session = Depends(get_db)):
+    event = db.query(NetworkEvent).filter(NetworkEvent.id == event_id).first()
+    if event is None:
+        raise HTTPException(status_code=404, detail="Event tidak ditemukan")
+    return xai_explain(event)   

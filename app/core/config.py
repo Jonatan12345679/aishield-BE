@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     ML_MODEL_PATH: str = "./ml/aishield/model/isolation_forest.pkl"
     ML_SCALER_PATH: str = "ml/aishield/model/scaler.pkl"
     ML_METRICS_PATH: str = "ml/aishield/model/metrics.json"
+    ML_FEATURE_COLUMNS_PATH: str = "ml/aishield/model/feature_columns.json"
 
     ALLOWED_ORIGINS: str = ""
 
