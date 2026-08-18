@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     MODEL_PRIVACY_DETECTION_PLAT_NOMOR_PATH: str
     MODEL_PRIVACY_DETECTION_QR_CODE_PATH: str
     MODEL_PRIVACY_DETECTION_STRUK_PATH: str
+    MODEL_PRIVACY_DETECTION_STRUK_AND_KTP_PATH: str
 
     class Config:
         env_file = ".env"
