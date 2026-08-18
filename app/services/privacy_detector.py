@@ -10,12 +10,16 @@ class PrivacyDetector:
     def __init__(
         self,
         model_path: str,
-        class_name: str,
-        threshold: float = 0.5
+        threshold: float = 0.5,
+        class_names: dict | None = None
     ):
         self.model_path = model_path
-        self.class_name = class_name
         self.threshold = threshold
+
+        self.class_names = class_names or {
+            0: "ktp",
+            1: "struk",
+        }
 
         self.session = ort.InferenceSession(
             model_path,

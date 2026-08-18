@@ -12,9 +12,9 @@ detector = MultiPrivacyDetector([
     # ),
     PrivacyDetector(
         settings.MODEL_PRIVACY_DETECTION_STRUK_AND_KTP_PATH,
-        "ktpNstruk",
-        # threshold=0.80
+        threshold=0.80
     ),
+    
     PrivacyDetector(
         settings.MODEL_PRIVACY_DETECTION_PLAT_NOMOR_PATH,
         "plat_nomor",
